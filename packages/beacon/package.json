@@ -1,0 +1,11 @@
+{
+  "name": "@web-services/beacon",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "hono": "^4.12.16"
+  }
+}

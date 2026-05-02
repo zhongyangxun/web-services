@@ -1,0 +1,8 @@
+if command -v gitleaks &> /dev/null; then
+  gitleaks protect --staged --verbose
+else
+  echo "🚫 gitleaks is not installed, please install it to enhance security."
+  exit 1
+fi
+
+pnpm exec lint-staged
