@@ -1,0 +1,50 @@
+# 在 PR 与推送到 main 时跑格式、Lint、构建（Turbo 会调度各包 wrangler dry-run）
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同一 PR 上多次 push 时，取消还在跑的旧 job，省 minutes
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # pnpm 版本由根目录 package.json 的 packageManager 字段指定（避免与 action 的 version 重复声明）
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup node
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        # CI 应用锁文件，避免“本地能装、CI 不一致”
+        run: pnpm install --frozen-lockfile
+
+      - name: Format (check only)
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Build (Turbo + wrangler dry-run per package)
+        run: pnpm run build
+
+      # 若以后加 "typecheck" 脚本，可解开下面一行
+      # - name: Typecheck
+      # run: pnpm run typecheck
