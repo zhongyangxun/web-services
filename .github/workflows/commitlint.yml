@@ -1,0 +1,60 @@
+# 校验 PR / main 推送中的 commit message 是否符合 Conventional Commits。
+# 规则定义在根目录 commitlint.config.ts（extends @commitlint/config-conventional）。
+# 注意：本 workflow 不校验 PR 标题，仅校验 git commit message。
+name: commitlint
+
+# 与 ci.yml 对齐：PR 与推送到 main 时运行，避免本地绕过 husky 的无效提交进入主分支。
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同一 PR 多次 push 时取消旧 run，节省 Actions 用量。
+concurrency:
+  group: commitlint-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # commitlint --from/--to 需要完整历史才能正确解析提交范围。
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup node
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: 'pnpm'
+
+      # 与 CI 一致：锁文件安装，保证与本地/其他 job 依赖一致。
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # PR：校验目标分支 base 与当前 head 之间的所有提交（即本 PR 引入的 commits）。
+      - name: Lint commit messages (pull request)
+        if: github.event_name == 'pull_request'
+        run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+      # 直推 main：校验本次 push 的提交区间（event.before → event.after）。
+      # before 为全 0 时表示新分支或首次推送，无可用“上一 tip”，改为与默认分支求 merge-base 再查到 HEAD。
+      - name: Lint commit messages (push)
+        if: github.event_name == 'push'
+        run: |
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+            git fetch origin "$DEFAULT_BRANCH"
+            BASE=$(git merge-base "origin/$DEFAULT_BRANCH" HEAD)
+            pnpm exec commitlint --from "$BASE" --to HEAD --verbose
+          else
+            pnpm exec commitlint --from ${{ github.event.before }} --to ${{ github.event.after }} --verbose
+          fi
