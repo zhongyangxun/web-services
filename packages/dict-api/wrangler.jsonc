@@ -5,5 +5,12 @@
   "dev": {
     "port": 8789
   },
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "ecdict_db",
+      "database_name": "ecdict-db",
+      "database_id": "1a32a801-a7f0-4fbe-a630-30a333acd2e7"
+    }
+  ]
 }
