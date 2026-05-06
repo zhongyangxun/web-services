@@ -22,9 +22,6 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.3.0(jiti@2.6.1))
-      '@types/node':
-        specifier: ^25.6.0
-        version: 25.6.0
       eslint:
         specifier: ^10.3.0
         version: 10.3.0(jiti@2.6.1)
@@ -40,9 +37,6 @@ importers:
       prettier:
         specifier: ^3.8.3
         version: 3.8.3
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
       turbo:
         specifier: ^2.9.7
         version: 2.9.7
@@ -1569,12 +1563,6 @@ packages:
       }
     engines: { node: '>=18' }
 
-  get-tsconfig@4.14.0:
-    resolution:
-      {
-        integrity: sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA==,
-      }
-
   git-raw-commits@5.0.1:
     resolution:
       {
@@ -1990,12 +1978,6 @@ packages:
       }
     engines: { node: '>=8' }
 
-  resolve-pkg-maps@1.0.0:
-    resolution:
-      {
-        integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==,
-      }
-
   restore-cursor@5.1.0:
     resolution:
       {
@@ -2136,14 +2118,6 @@ packages:
       {
         integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==,
       }
-
-  tsx@4.21.0:
-    resolution:
-      {
-        integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==,
-      }
-    engines: { node: '>=18.0.0' }
-    hasBin: true
 
   turbo@2.9.7:
     resolution:
@@ -3133,10 +3107,6 @@ snapshots:
 
   get-east-asian-width@1.5.0: {}
 
-  get-tsconfig@4.14.0:
-    dependencies:
-      resolve-pkg-maps: 1.0.0
-
   git-raw-commits@5.0.1(conventional-commits-parser@6.4.0):
     dependencies:
       '@conventional-changelog/git-client': 2.7.0(conventional-commits-parser@6.4.0)
@@ -3337,8 +3307,6 @@ snapshots:
 
   resolve-from@5.0.0: {}
 
-  resolve-pkg-maps@1.0.0: {}
-
   restore-cursor@5.1.0:
     dependencies:
       onetime: 7.0.0
@@ -3439,13 +3407,6 @@ snapshots:
 
   tslib@2.8.1:
     optional: true
-
-  tsx@4.21.0:
-    dependencies:
-      esbuild: 0.27.3
-      get-tsconfig: 4.14.0
-    optionalDependencies:
-      fsevents: 2.3.3
 
   turbo@2.9.7:
     optionalDependencies:
