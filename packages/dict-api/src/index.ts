@@ -3,9 +3,11 @@ import { cors } from 'hono/cors'
 import { eq } from 'drizzle-orm'
 import { words } from './db/schema'
 import { createDB, DB } from './db'
+import type { DurableObjectNamespace } from '@cloudflare/workers-types'
 
 type Bindings = {
   ecdict_db: D1Database
+  client_id_ratelimit: DurableObjectNamespace
 }
 
 type Variables = {
@@ -16,6 +18,7 @@ type LookupBody = {
   lookup_key: string
 }
 
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 const LOOKUP_URL = '/lookup'
 
 const isValidLookupBody = (body: unknown): body is LookupBody => {
@@ -35,7 +38,49 @@ app.onError((err, c) => {
   return c.json({ message: 'Internal Server Error' }, 500)
 })
 
-app.use('*', cors())
+app.use(
+  '*',
+  cors({
+    origin: ['chrome-extension://pfdbmcicifljojjkpfgafkdkcpdoamkl'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'X-Client-Id'],
+    maxAge: 60 * 60 * 24,
+  }),
+)
+
+// 限流中间件
+// TODO: replace in-memory rate limiting with Durable Object (global + consistent)
+app.use(LOOKUP_URL, async (c, next) => {
+  const clientId = c.req.header('X-Client-Id')
+  if (!clientId) {
+    return c.json({ message: 'X-Client-Id is required' }, 400)
+  }
+
+  const ip = c.req.header('CF-Connecting-IP') || 'anonymous'
+  const now = Date.now()
+  const windowMs = 60 * 1000
+  const maxRequests = 60
+  const rateKey = `${ip}-${clientId}`
+
+  let record = rateLimitMap.get(rateKey)
+
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs }
+  } else {
+    record.count++
+  }
+
+  rateLimitMap.set(rateKey, record)
+
+  if (record.count > maxRequests) {
+    return c.json(
+      { message: 'Too many requests, please try again later.' },
+      429,
+    )
+  }
+
+  await next()
+})
 
 app.use(LOOKUP_URL, async (c, next) => {
   c.set('db', createDB(c.env.ecdict_db))
