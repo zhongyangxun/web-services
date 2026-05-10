@@ -29,7 +29,8 @@ const isValidLookupBody = (body: unknown): body is LookupBody => {
     body !== null &&
     'lookup_key' in body &&
     typeof body.lookup_key === 'string' &&
-    body.lookup_key.trim() !== ''
+    body.lookup_key.trim() !== '' &&
+    body.lookup_key.trim().length <= 100
   )
 }
 
