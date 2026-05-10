@@ -3,11 +3,9 @@ import { cors } from 'hono/cors'
 import { eq } from 'drizzle-orm'
 import { words } from './db/schema'
 import { createDB, DB } from './db'
-import type { DurableObjectNamespace } from '@cloudflare/workers-types'
 
 type Bindings = {
   ecdict_db: D1Database
-  client_id_ratelimit: DurableObjectNamespace
 }
 
 type Variables = {
@@ -18,7 +16,11 @@ type LookupBody = {
   lookup_key: string
 }
 
+// 限流相关变量
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const CLEANUP_INTERVAL = 5 * 60 * 1000 // 每 5 分钟最多清理一次
+let lastCleanupTime = 0
+
 const LOOKUP_URL = '/lookup'
 
 const isValidLookupBody = (body: unknown): body is LookupBody => {
@@ -29,6 +31,22 @@ const isValidLookupBody = (body: unknown): body is LookupBody => {
     typeof body.lookup_key === 'string' &&
     body.lookup_key.trim() !== ''
   )
+}
+
+const cleanupRateLimitMap = () => {
+  const now = Date.now()
+
+  if (now - lastCleanupTime < CLEANUP_INTERVAL) {
+    return
+  }
+
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (value.resetTime < now) {
+      rateLimitMap.delete(key)
+    }
+  }
+
+  lastCleanupTime = now
 }
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
@@ -71,6 +89,9 @@ app.use(LOOKUP_URL, async (c, next) => {
   }
 
   rateLimitMap.set(rateKey, record)
+
+  // 清理过期的限流记录
+  cleanupRateLimitMap()
 
   if (record.count > maxRequests) {
     return c.json(
