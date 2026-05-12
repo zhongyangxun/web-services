@@ -25,6 +25,7 @@
     "@commitlint/config-conventional": "^20.5.3",
     "@commitlint/types": "^20.5.0",
     "@eslint/js": "^10.0.1",
+    "@types/node": "^25.6.2",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
@@ -35,5 +36,9 @@
     "typescript-eslint": "^8.59.1",
     "wrangler": "^4.87.0"
   },
-  "packageManager": "pnpm@11.0.6"
+  "packageManager": "pnpm@11.0.6",
+  "dependencies": {
+    "@hono/zod-validator": "^0.8.0",
+    "zod": "^4.4.3"
+  }
 }
