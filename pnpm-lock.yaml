@@ -82,7 +82,11 @@ importers:
         specifier: ^12.9.0
         version: 12.9.0
 
-  packages/shared: {}
+  packages/shared:
+    dependencies:
+      hono:
+        specifier: ^4.12.17
+        version: 4.12.17
 
   packages/translate-gateway:
     dependencies:
