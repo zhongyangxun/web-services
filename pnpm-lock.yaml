@@ -90,6 +90,9 @@ importers:
       '@hono/zod-validator':
         specifier: ^0.8.0
         version: 0.8.0(hono@4.12.17)(zod@4.4.3)
+      '@web-services/shared':
+        specifier: workspace:*
+        version: link:../shared
       hono:
         specifier: ^4.12.16
         version: 4.12.17

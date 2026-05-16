@@ -6,8 +6,9 @@
     "build": "wrangler deploy --dry-run --outdir dist"
   },
   "dependencies": {
-    "hono": "^4.12.16",
     "@hono/zod-validator": "^0.8.0",
+    "@web-services/shared": "workspace:*",
+    "hono": "^4.12.16",
     "zod": "^4.4.3"
   }
 }
