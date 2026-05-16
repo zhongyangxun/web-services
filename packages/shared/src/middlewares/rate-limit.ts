@@ -1,8 +1,8 @@
 import type { MiddlewareHandler } from 'hono'
 import { RateLimiterDurableObject } from '../durable-objects/rate-limiter'
 
-export type RateLimitOptions = {
-  bindingName: string
+export type RateLimitOptions<TBindings extends Record<string, unknown>> = {
+  bindingName: keyof TBindings
   serviceName: string
   routeName: string
   windowMs?: number
@@ -11,7 +11,9 @@ export type RateLimitOptions = {
   ipHeader?: string
 }
 
-const isDurableObjectNamespace = (namespace: unknown) => {
+const isDurableObjectNamespace = (
+  namespace: unknown,
+): namespace is DurableObjectNamespace<RateLimiterDurableObject> => {
   return (
     typeof namespace === 'object' &&
     namespace !== null &&
@@ -26,7 +28,7 @@ export const createDurableObjectRateLimitMiddleware = <
   TBindings extends Record<string, unknown>,
   TVariables extends Record<string, unknown>,
 >(
-  options: RateLimitOptions,
+  options: RateLimitOptions<TBindings>,
 ): MiddlewareHandler<{ Bindings: TBindings; Variables: TVariables }> => {
   const {
     bindingName,
@@ -59,13 +61,10 @@ export const createDurableObjectRateLimitMiddleware = <
       )
     }
 
-    const namespaced =
-      namespace as DurableObjectNamespace<RateLimiterDurableObject>
-
     const ip = c.req.header(ipHeader) || 'anonymous'
     const rateKey = `${serviceName}:${routeName}:${ip}:${clientId}`
-    const id = namespaced.idFromName(rateKey)
-    const stub = namespaced.get(id)
+    const id = namespace.idFromName(rateKey)
+    const stub = namespace.get(id)
     const result = await stub.check(windowMs, maxRequests)
 
     if (!result.allowed) {
