@@ -26,10 +26,9 @@ const isDurableObjectNamespace = (
 
 export const createDurableObjectRateLimitMiddleware = <
   TBindings extends Record<string, unknown>,
-  TVariables extends Record<string, unknown>,
 >(
   options: RateLimitOptions<TBindings>,
-): MiddlewareHandler<{ Bindings: TBindings; Variables: TVariables }> => {
+): MiddlewareHandler<{ Bindings: TBindings }> => {
   const {
     bindingName,
     serviceName,

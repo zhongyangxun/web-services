@@ -53,7 +53,7 @@ app.use(
 
 app.use(
   LOOKUP_URL,
-  createDurableObjectRateLimitMiddleware<Bindings, Variables>({
+  createDurableObjectRateLimitMiddleware<Bindings>({
     bindingName: 'rate_limiter',
     serviceName: 'dict-api',
     routeName: LOOKUP_URL,
