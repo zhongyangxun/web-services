@@ -12,5 +12,19 @@
       "database_name": "ecdict-db",
       "database_id": "1a32a801-a7f0-4fbe-a630-30a333acd2e7"
     }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "rate_limiter",
+        "class_name": "RateLimiterDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-add-rate-limiter-do",
+      "new_classes": ["RateLimiterDurableObject"]
+    }
   ]
 }

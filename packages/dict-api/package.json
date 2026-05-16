@@ -8,6 +8,7 @@
     "db:schema": "wrangler d1 execute ecdict-db --file=scripts/schema.sql --remote"
   },
   "dependencies": {
+    "@web-services/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.16"
   },
