@@ -3,9 +3,14 @@ import { cors } from 'hono/cors'
 import { eq } from 'drizzle-orm'
 import { words } from './db/schema'
 import { createDB, DB } from './db'
+import {
+  createDurableObjectRateLimitMiddleware,
+  RateLimiterDurableObject,
+} from '@web-services/shared'
 
 type Bindings = {
   ecdict_db: D1Database
+  rate_limiter: DurableObjectNamespace<RateLimiterDurableObject>
 }
 
 type Variables = {
@@ -15,11 +20,6 @@ type Variables = {
 type LookupBody = {
   lookup_key: string
 }
-
-// 限流相关变量
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
-const CLEANUP_INTERVAL = 5 * 60 * 1000 // 每 5 分钟最多清理一次
-let lastCleanupTime = 0
 
 const LOOKUP_URL = '/lookup'
 
@@ -32,22 +32,6 @@ const isValidLookupBody = (body: unknown): body is LookupBody => {
     body.lookup_key.trim() !== '' &&
     body.lookup_key.trim().length <= 100
   )
-}
-
-const cleanupRateLimitMap = () => {
-  const now = Date.now()
-
-  if (now - lastCleanupTime < CLEANUP_INTERVAL) {
-    return
-  }
-
-  for (const [key, value] of rateLimitMap.entries()) {
-    if (value.resetTime < now) {
-      rateLimitMap.delete(key)
-    }
-  }
-
-  lastCleanupTime = now
 }
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
@@ -67,42 +51,14 @@ app.use(
   }),
 )
 
-// 限流中间件
-// TODO: replace in-memory rate limiting with Durable Object (global + consistent)
-app.use(LOOKUP_URL, async (c, next) => {
-  const clientId = c.req.header('X-Client-Id')
-  if (!clientId) {
-    return c.json({ message: 'X-Client-Id is required' }, 400)
-  }
-
-  const ip = c.req.header('CF-Connecting-IP') || 'anonymous'
-  const now = Date.now()
-  const windowMs = 60 * 1000
-  const maxRequests = 60
-  const rateKey = `${ip}-${clientId}`
-
-  let record = rateLimitMap.get(rateKey)
-
-  if (!record || now > record.resetTime) {
-    record = { count: 1, resetTime: now + windowMs }
-  } else {
-    record.count++
-  }
-
-  rateLimitMap.set(rateKey, record)
-
-  // 清理过期的限流记录
-  cleanupRateLimitMap()
-
-  if (record.count > maxRequests) {
-    return c.json(
-      { message: 'Too many requests, please try again later.' },
-      429,
-    )
-  }
-
-  await next()
-})
+app.use(
+  LOOKUP_URL,
+  createDurableObjectRateLimitMiddleware<Bindings, Variables>({
+    bindingName: 'rate_limiter',
+    serviceName: 'dict-api',
+    routeName: LOOKUP_URL,
+  }),
+)
 
 app.use(LOOKUP_URL, async (c, next) => {
   c.set('db', createDB(c.env.ecdict_db))
@@ -142,3 +98,6 @@ app.get('/health', (c) => {
 })
 
 export default app
+
+// Wrangler 要求导出 DO 类, 且与 `wrangler.jsonc` 里 `durable_objects.bindings[].class_name` 一致
+export { RateLimiterDurableObject }
