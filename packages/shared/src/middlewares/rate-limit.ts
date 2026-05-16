@@ -43,7 +43,7 @@ export const createDurableObjectRateLimitMiddleware = <
     const clientId = c.req.header(clientIdHeader)
 
     if (!clientId) {
-      return c.json({ message: 'Client ID is required' }, 400)
+      return c.json({ message: 'X-Client-Id is required' }, 400)
     }
 
     const env = c.env
