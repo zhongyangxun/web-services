@@ -35,6 +35,7 @@ const postJson = async (): Promise<void> => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'X-Client-Id': '1234567890',
     },
     body: JSON.stringify(body),
   })

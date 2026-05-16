@@ -5,5 +5,19 @@
   "dev": {
     "port": 8787
   },
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "rate_limiter",
+        "class_name": "RateLimiterDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-add-rate-limiter-do",
+      "new_classes": ["RateLimiterDurableObject"]
+    }
+  ]
 }
