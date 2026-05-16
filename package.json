@@ -36,9 +36,5 @@
     "typescript-eslint": "^8.59.1",
     "wrangler": "^4.87.0"
   },
-  "packageManager": "pnpm@11.0.6",
-  "dependencies": {
-    "@hono/zod-validator": "^0.8.0",
-    "zod": "^4.4.3"
-  }
+  "packageManager": "pnpm@11.0.6"
 }
