@@ -1,0 +1,2 @@
+# Prettier 3+ respects .gitignore by default; only list extra ignores here.
+pnpm-lock.yaml
