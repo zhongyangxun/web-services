@@ -8,6 +8,7 @@ dist/
 !.env.example
 .DS_Store
 package-lock.json
+.dev.vars
 
 # Generated D1 import SQL
 **/scripts/sql/
