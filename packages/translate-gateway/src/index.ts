@@ -18,9 +18,21 @@ const translateSchema = z
   })
   .strict()
 
+const TRANSLATE_URL = '/translate'
+
+const shouldMockTranslate = (): boolean => {
+  return (
+    process.env.USE_MOCK_TRANSLATE === '1' ||
+    process.env.USE_MOCK_TRANSLATE === 'true'
+  )
+}
+
 const app = new Hono<{ Bindings: Bindings }>()
 
-const TRANSLATE_URL = '/translate'
+app.onError((err, c) => {
+  console.error('Unhandled error:', err)
+  return c.json({ message: 'Internal Server Error' }, 500)
+})
 
 app.use(
   TRANSLATE_URL,
@@ -41,10 +53,9 @@ app.post(
   async (c) => {
     const { text } = c.req.valid('json')
 
-    const result =
-      process.env.NODE_ENV === 'production'
-        ? await youdaoTranslate(text)
-        : youdaoMockTranslate(text)
+    const result = shouldMockTranslate()
+      ? youdaoMockTranslate(text)
+      : await youdaoTranslate(text)
 
     return c.json(result)
   },

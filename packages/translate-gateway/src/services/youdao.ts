@@ -1,8 +1,12 @@
 import crypto from 'crypto'
+import type { TranslateResult, YoudaoApiResponse } from './types'
 
 const YOUDAO_API_URL = 'https://openapi.youdao.com/api'
+const NO_ERROR_CODE = '0'
 
-export const youdaoTranslate = async (text: string) => {
+export const youdaoTranslate = async (
+  text: string,
+): Promise<TranslateResult> => {
   const trimed = text.trim()
   const textLen = trimed.length
 
@@ -41,5 +45,23 @@ export const youdaoTranslate = async (text: string) => {
     // fetch 会自动设置 Content-Type: application/x-www-form-urlencoded
     body,
   })
-  return response.json()
+
+  if (!response.ok) {
+    throw new Error(`Youdao API error: ${response.status}`)
+  }
+
+  const data: YoudaoApiResponse = (await response.json()) as YoudaoApiResponse
+
+  if (data.errorCode !== NO_ERROR_CODE) {
+    throw new Error(`Youdao API error: ${data.errorCode}`)
+  }
+
+  if (!data.translation?.[0]) {
+    throw new Error('Youdao API error: translation is empty')
+  }
+
+  return {
+    query: data.query,
+    translation: data.translation[0],
+  }
 }
