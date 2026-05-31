@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import * as z from 'zod'
 import { zValidator } from '@hono/zod-validator'
-import { youdaoTranslate } from './services/youdao'
+import { NoTranslationError, youdaoTranslate } from './services/youdao'
 import { youdaoMockTranslate } from './services/youdao-mock'
 import {
   createDurableObjectRateLimitMiddleware,
@@ -53,11 +53,18 @@ app.post(
   async (c) => {
     const { text } = c.req.valid('json')
 
-    const result = shouldMockTranslate()
-      ? youdaoMockTranslate(text)
-      : await youdaoTranslate(text)
+    try {
+      const result = shouldMockTranslate()
+        ? youdaoMockTranslate(text)
+        : await youdaoTranslate(text)
 
-    return c.json(result)
+      return c.json(result)
+    } catch (err) {
+      if (err instanceof NoTranslationError) {
+        return c.json({ message: err.message }, 422)
+      }
+      throw err
+    }
   },
 )
 

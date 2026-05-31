@@ -4,6 +4,17 @@ import type { TranslateResult, YoudaoApiResponse } from './types'
 const YOUDAO_API_URL = 'https://openapi.youdao.com/api'
 const NO_ERROR_CODE = '0'
 
+export class NoTranslationError extends Error {
+  constructor() {
+    super('No valid translation found')
+    this.name = 'NoTranslationError'
+  }
+}
+
+const containsChinese = (text: string): boolean => {
+  return /[\u4e00-\u9fff]/.test(text)
+}
+
 export const youdaoTranslate = async (
   text: string,
 ): Promise<TranslateResult> => {
@@ -38,6 +49,7 @@ export const youdaoTranslate = async (
     signType: 'v3',
     sign,
     curtime,
+    strict: 'true',
   })
 
   const response = await fetch(YOUDAO_API_URL, {
@@ -60,8 +72,14 @@ export const youdaoTranslate = async (
     throw new Error('Youdao API error: translation is empty')
   }
 
+  const translation = data.translation[0]
+
+  if (!containsChinese(translation)) {
+    throw new NoTranslationError()
+  }
+
   return {
     query: data.query,
-    translation: data.translation[0],
+    translation,
   }
 }
