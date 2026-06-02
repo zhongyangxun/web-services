@@ -6,6 +6,8 @@
     "port": 8787
   },
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
   "durable_objects": {
     "bindings": [
       {
