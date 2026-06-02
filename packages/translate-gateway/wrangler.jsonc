@@ -17,7 +17,7 @@
   "migrations": [
     {
       "tag": "v1-add-rate-limiter-do",
-      "new_classes": ["RateLimiterDurableObject"]
+      "new_sqlite_classes": ["RateLimiterDurableObject"]
     }
   ]
 }
