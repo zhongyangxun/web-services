@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import { eq } from 'drizzle-orm'
 import { words } from './db/schema'
 import { createDB, DB } from './db'
 import {
   createDurableObjectRateLimitMiddleware,
   RateLimiterDurableObject,
+  createBrowserExtCorsMiddleware,
+  parseExtensionOrigins,
 } from '@web-services/shared'
 
 type Bindings = {
@@ -43,11 +44,8 @@ app.onError((err, c) => {
 
 app.use(
   '*',
-  cors({
-    origin: ['chrome-extension://pfdbmcicifljojjkpfgafkdkcpdoamkl'],
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'X-Client-Id'],
-    maxAge: 60 * 60 * 24,
+  createBrowserExtCorsMiddleware({
+    allowedOrigins: parseExtensionOrigins(process.env.ALLOWED_EXTENSION_IDS),
   }),
 )
 

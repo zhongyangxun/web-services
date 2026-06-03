@@ -6,6 +6,8 @@ import { youdaoMockTranslate } from './services/youdao-mock'
 import {
   createDurableObjectRateLimitMiddleware,
   RateLimiterDurableObject,
+  createBrowserExtCorsMiddleware,
+  parseExtensionOrigins,
 } from '@web-services/shared'
 
 type Bindings = {
@@ -33,6 +35,13 @@ app.onError((err, c) => {
   console.error('Unhandled error:', err)
   return c.json({ message: 'Internal Server Error' }, 500)
 })
+
+app.use(
+  '*',
+  createBrowserExtCorsMiddleware({
+    allowedOrigins: parseExtensionOrigins(process.env.ALLOWED_EXTENSION_IDS),
+  }),
+)
 
 app.use(
   TRANSLATE_URL,
