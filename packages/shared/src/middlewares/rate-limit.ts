@@ -1,12 +1,16 @@
-import type { MiddlewareHandler } from 'hono'
-import { RateLimiterDurableObject } from '../durable-objects/rate-limiter'
+import type { Context, MiddlewareHandler } from 'hono'
+import {
+  CheckResult,
+  RateLimiterDurableObject,
+} from '../durable-objects/rate-limiter'
 
 export type RateLimitOptions<TBindings extends Record<string, unknown>> = {
   bindingName: keyof TBindings
   serviceName: string
   routeName: string
   windowMs?: number
-  maxRequests?: number
+  clientMaxRequests?: number // client id 上限
+  ipMaxRequests?: number // ip 上限
   clientIdHeader?: string
   ipHeader?: string
 }
@@ -24,6 +28,14 @@ const isDurableObjectNamespace = (
   )
 }
 
+const handleRateLimitError = (c: Context, result: CheckResult) => {
+  c.header(
+    'Retry-After',
+    Math.floor((result.resetTime - Date.now()) / 1000).toString(),
+  )
+  return c.json({ message: 'Too many requests, please try again later.' }, 429)
+}
+
 export const createDurableObjectRateLimitMiddleware = <
   TBindings extends Record<string, unknown>,
 >(
@@ -34,7 +46,8 @@ export const createDurableObjectRateLimitMiddleware = <
     serviceName,
     routeName,
     windowMs = 60 * 1000,
-    maxRequests = 60,
+    clientMaxRequests = 60,
+    ipMaxRequests = 120,
     clientIdHeader = 'X-Client-Id',
     ipHeader = 'CF-Connecting-IP',
   } = options
@@ -43,7 +56,7 @@ export const createDurableObjectRateLimitMiddleware = <
     const clientId = c.req.header(clientIdHeader)
 
     if (!clientId) {
-      return c.json({ message: 'X-Client-Id is required' }, 400)
+      return c.json({ message: `${clientIdHeader} is required` }, 400)
     }
 
     const env = c.env
@@ -61,20 +74,35 @@ export const createDurableObjectRateLimitMiddleware = <
     }
 
     const ip = c.req.header(ipHeader) || 'anonymous'
-    const rateKey = `${serviceName}:${routeName}:${ip}:${clientId}`
-    const id = namespace.idFromName(rateKey)
+    const doKey = `${serviceName}:${routeName}:${ip}`
+    const id = namespace.idFromName(doKey)
     const stub = namespace.get(id)
-    const result = await stub.check(windowMs, maxRequests)
+    const result = await stub.checkDual(
+      ip,
+      clientId,
+      windowMs,
+      ipMaxRequests,
+      clientMaxRequests,
+    )
 
     if (!result.allowed) {
-      c.header(
-        'Retry-After',
-        Math.floor((result.resetTime - Date.now()) / 1000).toString(),
-      )
+      const errorResult =
+        result.clientResult && !result.clientResult.allowed
+          ? result.clientResult
+          : result.ipResult
+      if (!errorResult) {
+        return c.json({ message: 'Rate limit state unavailable.' }, 500)
+      }
+      return handleRateLimitError(c, errorResult)
+    }
 
-      return c.json(
-        { message: 'Too many requests, please try again later.' },
-        429,
+    const limitResult = result.clientResult ?? result.ipResult
+
+    if (limitResult) {
+      c.header('X-RateLimit-Remaining', limitResult.remaining.toString())
+      c.header(
+        'X-RateLimit-Reset',
+        Math.floor(limitResult.resetTime / 1000).toString(),
       )
     }
 
