@@ -55,6 +55,7 @@ app.use(
     bindingName: 'rate_limiter',
     serviceName: 'dict-api',
     routeName: LOOKUP_URL,
+    ipMaxRequests: 150,
   }),
 )
 

@@ -49,6 +49,7 @@ app.use(
     bindingName: 'rate_limiter',
     serviceName: 'translate-gateway',
     routeName: TRANSLATE_URL,
+    ipMaxRequests: 90,
   }),
 )
 
