@@ -1,6 +1,8 @@
 import { MiddlewareHandler } from 'hono'
 import { cors } from 'hono/cors'
 
+export const DEFAULT_ALLOWED_HEADERS = ['Content-Type', 'X-Client-Id']
+
 export const parseExtensionOrigins = (ids?: string): string[] => {
   if (!ids?.trim()) return []
 
@@ -24,7 +26,7 @@ export const createBrowserExtCorsMiddleware = (
   const {
     allowedOrigins,
     allowMethods = ['GET', 'POST', 'OPTIONS'],
-    allowHeaders = ['Content-Type', 'X-Client-Id'],
+    allowHeaders = DEFAULT_ALLOWED_HEADERS,
     maxAge = 60 * 60 * 24,
   } = options
 
