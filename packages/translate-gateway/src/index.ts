@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import * as z from 'zod'
-import { zValidator } from '@hono/zod-validator'
 import { NoTranslationError, youdaoTranslate } from './services/youdao'
 import { youdaoMockTranslate } from './services/youdao-mock'
 import {
@@ -8,7 +7,10 @@ import {
   RateLimiterDurableObject,
   createBrowserExtCorsMiddleware,
   parseExtensionOrigins,
+  createRequestSignatureMiddleware,
+  DEFAULT_ALLOWED_HEADERS,
 } from '@web-services/shared'
+import { zValidator } from '@hono/zod-validator'
 
 type Bindings = {
   rate_limiter: DurableObjectNamespace<RateLimiterDurableObject>
@@ -29,7 +31,9 @@ const shouldMockTranslate = (): boolean => {
   )
 }
 
-const app = new Hono<{ Bindings: Bindings }>()
+const app = new Hono<{
+  Bindings: Bindings
+}>()
 
 app.onError((err, c) => {
   console.error('Unhandled error:', err)
@@ -40,7 +44,13 @@ app.use(
   '*',
   createBrowserExtCorsMiddleware({
     allowedOrigins: parseExtensionOrigins(process.env.ALLOWED_EXTENSION_IDS),
+    allowHeaders: [...DEFAULT_ALLOWED_HEADERS, 'X-Signature', 'X-Timestamp'],
   }),
+)
+
+app.use(
+  TRANSLATE_URL,
+  createRequestSignatureMiddleware(process.env.REQUEST_SIGNATURE_SECRET!),
 )
 
 app.use(
