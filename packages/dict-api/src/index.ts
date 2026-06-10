@@ -7,6 +7,8 @@ import {
   RateLimiterDurableObject,
   createBrowserExtCorsMiddleware,
   parseExtensionOrigins,
+  createRequestSignatureMiddleware,
+  DEFAULT_ALLOWED_HEADERS,
 } from '@web-services/shared'
 
 type Bindings = {
@@ -46,7 +48,13 @@ app.use(
   '*',
   createBrowserExtCorsMiddleware({
     allowedOrigins: parseExtensionOrigins(process.env.ALLOWED_EXTENSION_IDS),
+    allowHeaders: [...DEFAULT_ALLOWED_HEADERS, 'X-Signature', 'X-Timestamp'],
   }),
+)
+
+app.use(
+  LOOKUP_URL,
+  createRequestSignatureMiddleware(process.env.REQUEST_SIGNATURE_SECRET!),
 )
 
 app.use(
