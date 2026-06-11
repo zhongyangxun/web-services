@@ -13,6 +13,10 @@
       {
         "name": "rate_limiter",
         "class_name": "RateLimiterDurableObject"
+      },
+      {
+        "name": "cost_guard",
+        "class_name": "CostGuardDurableObject"
       }
     ]
   },
@@ -20,6 +24,10 @@
     {
       "tag": "v1-add-rate-limiter-do",
       "new_sqlite_classes": ["RateLimiterDurableObject"]
+    },
+    {
+      "tag": "v1-add-cost-guard-do",
+      "new_sqlite_classes": ["CostGuardDurableObject"]
     }
   ]
 }

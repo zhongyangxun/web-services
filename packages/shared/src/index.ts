@@ -8,3 +8,6 @@ export * from './durable-objects/rate-limiter'
 export * from './middlewares/browser-ext-cors'
 
 export * from './middlewares/request-signature'
+
+export * from './middlewares/daily-quota'
+export * from './durable-objects/cost-guard'
