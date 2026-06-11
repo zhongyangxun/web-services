@@ -3,6 +3,8 @@ import {
   CheckResult,
   RateLimiterDurableObject,
 } from '../durable-objects/rate-limiter'
+import { isDurableObjectNamespace } from '../durable-objects/utils'
+import { RATE_LIMIT_EXCEEDED_CODE } from '../constants/error-codes'
 
 export type RateLimitOptions<TBindings extends Record<string, unknown>> = {
   bindingName: keyof TBindings
@@ -15,25 +17,18 @@ export type RateLimitOptions<TBindings extends Record<string, unknown>> = {
   ipHeader?: string
 }
 
-const isDurableObjectNamespace = (
-  namespace: unknown,
-): namespace is DurableObjectNamespace<RateLimiterDurableObject> => {
-  return (
-    typeof namespace === 'object' &&
-    namespace !== null &&
-    'get' in namespace &&
-    'idFromName' in namespace &&
-    typeof namespace.get === 'function' &&
-    typeof namespace.idFromName === 'function'
-  )
-}
-
 const handleRateLimitError = (c: Context, result: CheckResult) => {
   c.header(
     'Retry-After',
     Math.floor((result.resetTime - Date.now()) / 1000).toString(),
   )
-  return c.json({ message: 'Too many requests, please try again later.' }, 429)
+  return c.json(
+    {
+      message: 'Too many requests, please try again later.',
+      code: RATE_LIMIT_EXCEEDED_CODE,
+    },
+    429,
+  )
 }
 
 export const createDurableObjectRateLimitMiddleware = <
@@ -66,7 +61,7 @@ export const createDurableObjectRateLimitMiddleware = <
       return c.json({ message: 'Rate limit namespace not found' }, 500)
     }
 
-    if (!isDurableObjectNamespace(namespace)) {
+    if (!isDurableObjectNamespace<RateLimiterDurableObject>(namespace)) {
       return c.json(
         { message: 'Rate limit namespace is not a durable object' },
         500,
