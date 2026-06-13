@@ -9,6 +9,12 @@
   "workers_dev": false,
   "preview_urls": false,
   "keep_vars": true,
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
   "durable_objects": {
     "bindings": [
       {
