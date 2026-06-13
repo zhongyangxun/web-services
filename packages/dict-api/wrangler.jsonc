@@ -6,8 +6,9 @@
     "port": 8789
   },
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
+  "keep_vars": true,
   "d1_databases": [
     {
       "binding": "ecdict_db",
