@@ -11,6 +11,10 @@ import {
   CostGuardDurableObject,
   createDailyQuotaMiddleware,
   rollbackDailyQuota,
+  createTimingMiddleware,
+  createTimingMarkMiddleware,
+  markTiming,
+  TimingVariables,
 } from '@web-services/shared'
 import { zValidator } from '@hono/zod-validator'
 
@@ -30,6 +34,7 @@ const TRANSLATE_URL = '/translate'
 
 const app = new Hono<{
   Bindings: Bindings
+  Variables: TimingVariables
 }>()
 
 app.onError((err, c) => {
@@ -45,10 +50,13 @@ app.use(
   }),
 )
 
+app.use(TRANSLATE_URL, createTimingMiddleware())
+
 app.use(
   TRANSLATE_URL,
   createRequestSignatureMiddleware(process.env.REQUEST_SIGNATURE_SECRET!),
 )
+app.use(TRANSLATE_URL, createTimingMarkMiddleware('after-signature'))
 
 app.use(
   TRANSLATE_URL,
@@ -59,6 +67,7 @@ app.use(
     ipMaxRequests: 90,
   }),
 )
+app.use(TRANSLATE_URL, createTimingMarkMiddleware('after-ratelimit'))
 
 app.post(
   TRANSLATE_URL,
@@ -75,10 +84,14 @@ app.post(
     maxPerDayEnvKey: 'DAILY_TRANSLATE_QUOTA',
   }),
   async (c) => {
+    markTiming(c, 'after-quota')
+
     const { text } = c.req.valid('json')
 
     try {
       const result = await youdaoTranslate(text)
+
+      markTiming(c, 'after-youdao')
 
       return c.json(result)
     } catch (err) {
