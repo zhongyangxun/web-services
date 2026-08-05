@@ -2,7 +2,6 @@ import { MiddlewareHandler } from 'hono'
 import { isDurableObjectNamespace } from '../durable-objects/utils'
 import { CostGuardDurableObject } from '../durable-objects/cost-guard'
 import { DEFAULT_TIME_ZONE, getDayKey } from '../utils/day'
-import { Context } from 'hono'
 import { DAILY_QUOTA_EXCEEDED_CODE } from '../constants/error-codes'
 
 type DailyQuotaOptions<TBindings extends Record<string, unknown>> = {
@@ -86,7 +85,7 @@ type RollbackDailyQuotaOptions<TBindings extends Record<string, unknown>> =
     DailyQuotaOptions<TBindings>,
     'bindingName' | 'serviceName' | 'routeName' | 'timeZone'
   > & {
-    context: Context<{ Bindings: TBindings }>
+    context: { env: TBindings }
   }
 
 export const rollbackDailyQuota = async <
