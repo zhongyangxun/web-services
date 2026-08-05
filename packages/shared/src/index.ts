@@ -11,3 +11,5 @@ export * from './middlewares/request-signature'
 
 export * from './middlewares/daily-quota'
 export * from './durable-objects/cost-guard'
+
+export * from './middlewares/timing'
