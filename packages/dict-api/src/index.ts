@@ -9,6 +9,10 @@ import {
   parseExtensionOrigins,
   createRequestSignatureMiddleware,
   DEFAULT_ALLOWED_HEADERS,
+  TimingVariables,
+  createTimingMiddleware,
+  createTimingMarkMiddleware,
+  markTiming,
 } from '@web-services/shared'
 
 type Bindings = {
@@ -18,7 +22,7 @@ type Bindings = {
 
 type Variables = {
   db: DB
-}
+} & TimingVariables
 
 type LookupBody = {
   lookup_key: string
@@ -52,10 +56,13 @@ app.use(
   }),
 )
 
+app.use(LOOKUP_URL, createTimingMiddleware())
+
 app.use(
   LOOKUP_URL,
   createRequestSignatureMiddleware(process.env.REQUEST_SIGNATURE_SECRET!),
 )
+app.use(LOOKUP_URL, createTimingMarkMiddleware('after-signature'))
 
 app.use(
   LOOKUP_URL,
@@ -66,11 +73,13 @@ app.use(
     ipMaxRequests: 150,
   }),
 )
+app.use(LOOKUP_URL, createTimingMarkMiddleware('after-ratelimit'))
 
 app.use(LOOKUP_URL, async (c, next) => {
   c.set('db', createDB(c.env.ecdict_db))
   await next()
 })
+app.use(LOOKUP_URL, createTimingMarkMiddleware('after-d1-init'))
 
 app.post(LOOKUP_URL, async (c) => {
   let body: unknown
@@ -86,7 +95,10 @@ app.post(LOOKUP_URL, async (c) => {
 
   const word = body.lookup_key.trim()
   const db = c.get('db')
+
+  markTiming(c, 'before-d1-query')
   const result = await db.select().from(words).where(eq(words.word, word)).get()
+  markTiming(c, 'after-d1-query')
 
   if (!result) {
     return c.json({ message: 'Word not found' }, 404)
