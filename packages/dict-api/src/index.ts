@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm'
 import { words } from './db/schema'
 import { createDB, DB } from './db'
 import {
-  createDurableObjectRateLimitMiddleware,
   RateLimiterDurableObject,
   createBrowserExtCorsMiddleware,
   parseExtensionOrigins,
@@ -13,6 +12,12 @@ import {
   createTimingMiddleware,
   createTimingMarkMiddleware,
   markTiming,
+  checkRateLimit,
+  buildCacheKey,
+  matchEdgeCache,
+  putEdgeCache,
+  SECONDS,
+  asCacheHit,
 } from '@web-services/shared'
 
 type Bindings = {
@@ -64,17 +69,6 @@ app.use(
 )
 app.use(LOOKUP_URL, createTimingMarkMiddleware('after-signature'))
 
-app.use(
-  LOOKUP_URL,
-  createDurableObjectRateLimitMiddleware<Bindings>({
-    bindingName: 'rate_limiter',
-    serviceName: 'dict-api',
-    routeName: LOOKUP_URL,
-    ipMaxRequests: 150,
-  }),
-)
-app.use(LOOKUP_URL, createTimingMarkMiddleware('after-ratelimit'))
-
 app.use(LOOKUP_URL, async (c, next) => {
   c.set('db', createDB(c.env.ecdict_db))
   await next()
@@ -94,6 +88,32 @@ app.post(LOOKUP_URL, async (c) => {
   }
 
   const word = body.lookup_key.trim()
+
+  const cacheKey = buildCacheKey({
+    requestUrl: c.req.url,
+    namespace: 'lookup',
+    version: 'v1',
+    parts: [word],
+  })
+
+  const cached = await matchEdgeCache(cacheKey)
+  if (cached) {
+    markTiming(c, 'cache-hit')
+    return asCacheHit(cached)
+  }
+  markTiming(c, 'cache-miss')
+
+  const rateLimitBlocked = await checkRateLimit(c, {
+    bindingName: 'rate_limiter',
+    serviceName: 'dict-api',
+    routeName: LOOKUP_URL,
+    ipMaxRequests: 150,
+  })
+  markTiming(c, 'after-ratelimit')
+  if (rateLimitBlocked) {
+    return rateLimitBlocked
+  }
+
   const db = c.get('db')
 
   markTiming(c, 'before-d1-query')
@@ -104,12 +124,19 @@ app.post(LOOKUP_URL, async (c) => {
     return c.json({ message: 'Word not found' }, 404)
   }
 
-  return c.json({
+  const res = c.json({
     word: result.word,
     phonetic: result.phonetic,
     translation: result.translation,
     exchange: result.exchange,
   })
+
+  await putEdgeCache(c.executionCtx, cacheKey, res, {
+    maxAgeSeconds: SECONDS.DAY * 30,
+    shouldCache: (res) => res.status === 200,
+  })
+
+  return res
 })
 
 app.get('/health', (c) => {
