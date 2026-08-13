@@ -2,21 +2,27 @@ import { Hono } from 'hono'
 import * as z from 'zod'
 import { NoTranslationError, youdaoTranslate } from './services/youdao'
 import {
-  createDurableObjectRateLimitMiddleware,
   RateLimiterDurableObject,
   createBrowserExtCorsMiddleware,
   parseExtensionOrigins,
   createRequestSignatureMiddleware,
   DEFAULT_ALLOWED_HEADERS,
   CostGuardDurableObject,
-  createDailyQuotaMiddleware,
   rollbackDailyQuota,
   createTimingMiddleware,
   createTimingMarkMiddleware,
   markTiming,
   TimingVariables,
+  buildCacheKey,
+  matchEdgeCache,
+  asCacheHit,
+  putEdgeCache,
+  SECONDS,
+  checkDailyQuota,
+  checkRateLimit,
 } from '@web-services/shared'
 import { zValidator } from '@hono/zod-validator'
+import { hashText } from './hash-text'
 
 type Bindings = {
   rate_limiter: DurableObjectNamespace<RateLimiterDurableObject>
@@ -58,17 +64,6 @@ app.use(
 )
 app.use(TRANSLATE_URL, createTimingMarkMiddleware('after-signature'))
 
-app.use(
-  TRANSLATE_URL,
-  createDurableObjectRateLimitMiddleware<Bindings>({
-    bindingName: 'rate_limiter',
-    serviceName: TRANSLATE_SERVICE_NAME,
-    routeName: TRANSLATE_URL,
-    ipMaxRequests: 90,
-  }),
-)
-app.use(TRANSLATE_URL, createTimingMarkMiddleware('after-ratelimit'))
-
 app.post(
   TRANSLATE_URL,
   zValidator('json', translateSchema, (result, c) => {
@@ -76,24 +71,60 @@ app.post(
       return c.json({ message: 'Invalid JSON' }, 400)
     }
   }),
-  // 每日请求限额，只对合法请求计数，所以放在其它校验之后，避免计入非法请求
-  createDailyQuotaMiddleware<Bindings>({
-    bindingName: 'cost_guard',
-    serviceName: TRANSLATE_SERVICE_NAME,
-    routeName: TRANSLATE_URL,
-    maxPerDayEnvKey: 'DAILY_TRANSLATE_QUOTA',
-  }),
   async (c) => {
-    markTiming(c, 'after-quota')
-
     const { text } = c.req.valid('json')
+
+    const cacheKey = buildCacheKey({
+      requestUrl: c.req.url,
+      namespace: 'translate',
+      version: 'v1',
+      // *use hash to limit length, since text could be too long
+      parts: [await hashText(text)],
+    })
+
+    const cached = await matchEdgeCache(cacheKey)
+    if (cached) {
+      markTiming(c, 'cache-hit')
+      return asCacheHit(cached)
+    }
+    markTiming(c, 'cache-miss')
+
+    const rateLimitBlocked = await checkRateLimit(c, {
+      bindingName: 'rate_limiter',
+      serviceName: TRANSLATE_SERVICE_NAME,
+      routeName: TRANSLATE_URL,
+      ipMaxRequests: 90,
+    })
+    markTiming(c, 'after-ratelimit')
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
+    // after all validation and missing cache, avoiding counting invalid requests and cache hit situation
+    const quotaBlocked = await checkDailyQuota(c, {
+      bindingName: 'cost_guard',
+      serviceName: TRANSLATE_SERVICE_NAME,
+      routeName: TRANSLATE_URL,
+      maxPerDayEnvKey: 'DAILY_TRANSLATE_QUOTA',
+    })
+    markTiming(c, 'after-quota')
+    if (quotaBlocked) {
+      return quotaBlocked
+    }
 
     try {
       const result = await youdaoTranslate(text)
 
       markTiming(c, 'after-youdao')
 
-      return c.json(result)
+      const res = c.json(result)
+
+      await putEdgeCache(c.executionCtx, cacheKey, res, {
+        maxAgeSeconds: SECONDS.DAY * 3,
+        shouldCache: (res) => res.status === 200,
+      })
+
+      return res
     } catch (err) {
       if (err instanceof NoTranslationError) {
         // 无有效翻译结果，此处无需回滚每日请求限额，因为已经成功调用 Youdao API
