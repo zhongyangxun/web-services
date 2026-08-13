@@ -1,4 +1,4 @@
-import { MiddlewareHandler } from 'hono'
+import { Context, MiddlewareHandler } from 'hono'
 import { isDurableObjectNamespace } from '../durable-objects/utils'
 import { CostGuardDurableObject } from '../durable-objects/cost-guard'
 import { DEFAULT_TIME_ZONE, getDayKey } from '../utils/day'
@@ -13,11 +13,12 @@ type DailyQuotaOptions<TBindings extends Record<string, unknown>> = {
   timeZone?: string
 }
 
-export const createDailyQuotaMiddleware = <
+export const checkDailyQuota = async <
   TBindings extends Record<string, unknown>,
 >(
+  c: Context,
   options: DailyQuotaOptions<TBindings>,
-): MiddlewareHandler<{ Bindings: TBindings }> => {
+): Promise<Response | undefined> => {
   const {
     bindingName,
     serviceName,
@@ -27,56 +28,67 @@ export const createDailyQuotaMiddleware = <
     timeZone = DEFAULT_TIME_ZONE,
   } = options
 
-  return async (c, next) => {
-    const env = c.env
-    const maxPerDay = Number(env[maxPerDayEnvKey])
-    const isValidMaxPerDay = !Number.isNaN(maxPerDay) && maxPerDay > 0
-    if (!isValidMaxPerDay) {
-      console.warn('Invalid max per day', maxPerDayEnvKey, maxPerDay)
-    }
-    // 跳过条件：1. 配置了跳过 2. 最大次数不是数字 3. 最大次数小于等于0
-    if (skip || !isValidMaxPerDay) {
-      return await next()
-    }
+  const env = c.env
+  const maxPerDay = Number(env[maxPerDayEnvKey])
+  const isValidMaxPerDay = !Number.isNaN(maxPerDay) && maxPerDay > 0
+  if (!isValidMaxPerDay) {
+    console.warn('Invalid max per day', maxPerDayEnvKey, maxPerDay)
+  }
+  // 跳过条件：1. 配置了跳过 2. 最大次数不是有效的数字或小于等于 0
+  if (skip || !isValidMaxPerDay) {
+    return
+  }
 
-    const namespace = env[bindingName]
-    if (!namespace) {
-      return c.json({ message: 'Daily Quota namespace not found' }, 500)
-    }
+  const namespace = env[bindingName]
+  if (!namespace) {
+    return c.json({ message: 'Daily Quota namespace not found' }, 500)
+  }
 
-    if (!isDurableObjectNamespace<CostGuardDurableObject>(namespace)) {
-      return c.json(
-        { message: 'Daily Quota namespace is not a Durable Object' },
-        500,
-      )
-    }
-
-    const doKey = `${serviceName}:${routeName}`
-    const id = namespace.idFromName(doKey)
-    const stub = namespace.get(id)
-    const result = await stub.reserveDailyQuota(
-      getDayKey({ timeZone }),
-      maxPerDay,
+  if (!isDurableObjectNamespace<CostGuardDurableObject>(namespace)) {
+    return c.json(
+      { message: 'Daily Quota namespace is not a Durable Object' },
+      500,
     )
+  }
 
-    if (!result.allowed) {
-      c.header(
-        'Retry-After',
-        Math.floor((result.resetTime - Date.now()) / 1000).toString(),
-      )
-      return c.json(
-        {
-          message: 'Daily Quota exceeded',
-          code: DAILY_QUOTA_EXCEEDED_CODE,
-          resetTime: result.resetTime,
-        },
-        429,
-      )
+  const doKey = `${serviceName}:${routeName}`
+  const id = namespace.idFromName(doKey)
+  const stub = namespace.get(id)
+  const result = await stub.reserveDailyQuota(
+    getDayKey({ timeZone }),
+    maxPerDay,
+  )
+
+  if (!result.allowed) {
+    c.header(
+      'Retry-After',
+      Math.floor((result.resetTime - Date.now()) / 1000).toString(),
+    )
+    return c.json(
+      {
+        message: 'Daily Quota exceeded',
+        code: DAILY_QUOTA_EXCEEDED_CODE,
+        resetTime: result.resetTime,
+      },
+      429,
+    )
+  }
+
+  c.header('X-Daily-Quota-Remaining', result.remaining.toString())
+}
+
+export const createDailyQuotaMiddleware = <
+  TBindings extends Record<string, unknown>,
+>(
+  options: DailyQuotaOptions<TBindings>,
+): MiddlewareHandler<{ Bindings: TBindings }> => {
+  return async (c, next) => {
+    const blocked = await checkDailyQuota(c, options)
+    if (blocked) {
+      return blocked
     }
 
-    c.header('X-Daily-Quota-Remaining', result.remaining.toString())
-
-    await next()
+    return await next()
   }
 }
 
