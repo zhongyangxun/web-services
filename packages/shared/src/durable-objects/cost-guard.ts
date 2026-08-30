@@ -43,9 +43,13 @@ export class CostGuardDurableObject extends DurableObject {
 
   async rollbackDailyQuota(dayKey: string) {
     const record = await this.ctx.storage.get<CostGuardRecord>(dayKey)
+
+    // nothing to roll back; treat as a no-op.
     if (!record) {
-      throw new Error(`Daily quota record not found for day key: ${dayKey}`)
+      console.warn(`Daily quota record not found for day key: ${dayKey}`)
+      return
     }
+
     record.count = Math.max(record.count - 1, 0)
     await this.ctx.storage.put(dayKey, record)
   }
