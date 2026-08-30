@@ -89,25 +89,49 @@ app.post(
     }
     markTiming(c, 'cache-miss')
 
-    const rateLimitBlocked = await checkRateLimit(c, {
+    const checkRateLimitWithTiming = checkRateLimit(c, {
       bindingName: 'rate_limiter',
       serviceName: TRANSLATE_SERVICE_NAME,
       routeName: TRANSLATE_URL,
       ipMaxRequests: 90,
+    }).then((res) => {
+      markTiming(c, 'after-ratelimit')
+      return res
     })
-    markTiming(c, 'after-ratelimit')
-    if (rateLimitBlocked) {
-      return rateLimitBlocked
-    }
 
-    // after all validation and missing cache, avoiding counting invalid requests and cache hit situation
-    const quotaBlocked = await checkDailyQuota(c, {
+    // after cache miss and JSON validation, avoiding counting invalid requests and cache hit situation
+    const checkDailyQuotaWithTiming = checkDailyQuota(c, {
       bindingName: 'cost_guard',
       serviceName: TRANSLATE_SERVICE_NAME,
       routeName: TRANSLATE_URL,
       maxPerDayEnvKey: 'DAILY_TRANSLATE_QUOTA',
+    }).then((res) => {
+      markTiming(c, 'after-quota')
+      return res
     })
-    markTiming(c, 'after-quota')
+
+    // parallelize checkRateLimit and checkDailyQuota to reduce latency
+    const [rateLimitBlocked, quotaBlocked] = await Promise.all([
+      checkRateLimitWithTiming,
+      checkDailyQuotaWithTiming,
+    ])
+
+    if (rateLimitBlocked) {
+      if (!quotaBlocked) {
+        // rollback daily quota if rate limit blocked but daily quota is not blocked
+        c.executionCtx.waitUntil(
+          rollbackDailyQuota<Bindings>({
+            bindingName: 'cost_guard',
+            serviceName: TRANSLATE_SERVICE_NAME,
+            routeName: TRANSLATE_URL,
+            context: c,
+          }),
+        )
+      }
+
+      return rateLimitBlocked
+    }
+
     if (quotaBlocked) {
       return quotaBlocked
     }
