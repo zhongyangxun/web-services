@@ -1,10 +1,11 @@
 import type { Context, MiddlewareHandler, Next } from 'hono'
+
+import { RATE_LIMIT_EXCEEDED_CODE } from '../constants/error-codes'
 import {
   CheckResult,
   RateLimiterDurableObject,
 } from '../durable-objects/rate-limiter'
 import { isDurableObjectNamespace } from '../durable-objects/utils'
-import { RATE_LIMIT_EXCEEDED_CODE } from '../constants/error-codes'
 
 export type RateLimitOptions<TBindings extends Record<string, unknown>> = {
   bindingName: keyof TBindings
