@@ -1,24 +1,26 @@
-import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
-import { words } from './db/schema'
-import { createDB, DB } from './db'
+import { Hono } from 'hono'
+
 import {
-  RateLimiterDurableObject,
-  createBrowserExtCorsMiddleware,
-  parseExtensionOrigins,
-  createRequestSignatureMiddleware,
-  DEFAULT_ALLOWED_HEADERS,
-  TimingVariables,
-  createTimingMiddleware,
-  createTimingMarkMiddleware,
-  markTiming,
-  checkRateLimit,
-  buildCacheKey,
-  matchEdgeCache,
-  putEdgeCache,
-  SECONDS,
   asCacheHit,
+  buildCacheKey,
+  checkRateLimit,
+  createBrowserExtCorsMiddleware,
+  createRequestSignatureMiddleware,
+  createTimingMarkMiddleware,
+  createTimingMiddleware,
+  DEFAULT_ALLOWED_HEADERS,
+  markTiming,
+  matchEdgeCache,
+  parseExtensionOrigins,
+  putEdgeCache,
+  RateLimiterDurableObject,
+  SECONDS,
+  TimingVariables,
 } from '@web-services/shared'
+
+import { createDB, DB } from './db'
+import { words } from './db/schema'
 
 type Bindings = {
   ecdict_db: D1Database

@@ -1,9 +1,10 @@
 import { MiddlewareHandler } from 'hono'
+
+import { hmacSha256Hex } from '../crypto/hmac-sha256'
 import {
   buildCanonicalV1,
   parseV1SignatureHeader,
 } from '../request-signature/canonical'
-import { hmacSha256Hex } from '../crypto/hmac-sha256'
 
 export const createRequestSignatureMiddleware = (
   secret: string,

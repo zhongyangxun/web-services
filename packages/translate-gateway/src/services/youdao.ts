@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+
 import type { TranslateResult, YoudaoApiResponse } from './types'
 
 const YOUDAO_API_URL = 'https://openapi.youdao.com/api'
