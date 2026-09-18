@@ -43,7 +43,7 @@ export const youdaoTranslate = async (
 
   const body = new URLSearchParams({
     q: trimed,
-    from: 'en',
+    from: 'auto',
     to: 'zh-CHS',
     appKey: process.env.YOUDAO_APP_KEY || '',
     salt,
