@@ -16,8 +16,14 @@ const containsChinese = (text: string): boolean => {
   return /[\u4e00-\u9fff]/.test(text)
 }
 
+type YoudaoTranslateOptions = {
+  /** Optional timing hooks for diagnosing latency (labels are cumulative from request start). */
+  markTiming?: (label: string) => void
+}
+
 export const youdaoTranslate = async (
   text: string,
+  options?: YoudaoTranslateOptions,
 ): Promise<TranslateResult> => {
   const trimed = text.trim()
   const textLen = trimed.length
@@ -53,17 +59,23 @@ export const youdaoTranslate = async (
     strict: 'true',
   })
 
+  options?.markTiming?.('youdao-before-fetch')
+
   const response = await fetch(YOUDAO_API_URL, {
     method: 'POST',
     // fetch 会自动设置 Content-Type: application/x-www-form-urlencoded
     body,
   })
 
+  options?.markTiming?.('youdao-after-fetch')
+
   if (!response.ok) {
     throw new Error(`Youdao API error: ${response.status}`)
   }
 
   const data: YoudaoApiResponse = (await response.json()) as YoudaoApiResponse
+
+  options?.markTiming?.('youdao-after-json')
 
   if (data.errorCode !== NO_ERROR_CODE) {
     throw new Error(`Youdao API error: ${data.errorCode}`)

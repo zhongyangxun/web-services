@@ -139,7 +139,9 @@ app.post(
     }
 
     try {
-      const result = await youdaoTranslate(text)
+      const result = await youdaoTranslate(text, {
+        markTiming: (label) => markTiming(c, label),
+      })
 
       markTiming(c, 'after-youdao')
 
