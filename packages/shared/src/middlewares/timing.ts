@@ -36,6 +36,7 @@ export const createTimingMiddleware = <
         method: c.req.method,
         path: new URL(c.req.url).pathname,
         status: c.res.status,
+        colo: c.req.raw.cf?.colo,
         totalMs,
         spans,
       }),
