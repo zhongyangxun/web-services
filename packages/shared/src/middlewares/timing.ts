@@ -36,7 +36,11 @@ export const createTimingMiddleware = <
         method: c.req.method,
         path: new URL(c.req.url).pathname,
         status: c.res.status,
+        // where the request entered Cloudflare (ingress)
         colo: c.req.raw.cf?.colo,
+        // where the Worker actually ran (e.g. remote-HKG / local-SJC)
+        placement:
+          c.req.header('cf-placement') ?? c.res.headers.get('cf-placement'),
         totalMs,
         spans,
       }),
