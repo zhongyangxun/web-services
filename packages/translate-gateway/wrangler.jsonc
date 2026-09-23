@@ -9,6 +9,9 @@
   "workers_dev": false,
   "preview_urls": false,
   "keep_vars": true,
+  "placement": {
+    "hostname": "openapi.youdao.com"
+  },
   "observability": {
     "logs": {
       "enabled": true,
