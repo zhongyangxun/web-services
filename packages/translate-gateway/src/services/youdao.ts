@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 
+import { MAX_TRANSLATE_TEXT_LEN } from '../constants'
 import type { TranslateResult, YoudaoApiResponse } from './types'
 
 const YOUDAO_API_URL = 'https://openapi.youdao.com/api'
@@ -28,8 +29,10 @@ export const youdaoTranslate = async (
   const trimed = text.trim()
   const textLen = trimed.length
 
-  if (textLen <= 1 || textLen > 600) {
-    throw new Error('Text length must be between 1 and 600')
+  if (textLen < 1 || textLen > MAX_TRANSLATE_TEXT_LEN) {
+    throw new Error(
+      `Text length must be between 1 and ${MAX_TRANSLATE_TEXT_LEN}`,
+    )
   }
 
   const salt = crypto.randomUUID()

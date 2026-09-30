@@ -1,0 +1,1 @@
+export const MAX_TRANSLATE_TEXT_LEN = 2000

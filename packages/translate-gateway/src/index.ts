@@ -23,6 +23,7 @@ import {
   TimingVariables,
 } from '@web-services/shared'
 
+import { MAX_TRANSLATE_TEXT_LEN } from './constants'
 import { hashText } from './hash-text'
 import { NoTranslationError, youdaoTranslate } from './services/youdao'
 
@@ -33,9 +34,25 @@ type Bindings = {
 
 const translateSchema = z
   .object({
-    text: z.string().min(1).max(600),
+    text: z.string().trim().min(1).max(MAX_TRANSLATE_TEXT_LEN),
   })
   .strict()
+
+const getTranslateValidationError = (
+  error: unknown,
+): { message: string; code?: string } => {
+  const message = 'Invalid JSON'
+
+  if (error instanceof z.ZodError) {
+    const code = error.issues[0]?.code
+    return {
+      message,
+      ...(code ? { code } : {}),
+    }
+  }
+  // JSON body parse failure from zValidator
+  return { message }
+}
 
 const TRANSLATE_SERVICE_NAME = 'translate-gateway'
 const TRANSLATE_URL = '/translate'
@@ -70,7 +87,7 @@ app.post(
   TRANSLATE_URL,
   zValidator('json', translateSchema, (result, c) => {
     if (!result.success) {
-      return c.json({ message: 'Invalid JSON' }, 400)
+      return c.json(getTranslateValidationError(result.error), 400)
     }
   }),
   async (c) => {
