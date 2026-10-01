@@ -9,6 +9,7 @@ dist/
 .DS_Store
 package-lock.json
 .dev.vars
+.local/
 
 # Generated D1 import SQL
 **/scripts/sql/
