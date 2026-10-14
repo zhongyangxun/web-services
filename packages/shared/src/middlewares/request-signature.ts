@@ -11,6 +11,7 @@ export const createRequestSignatureMiddleware = (
 ): MiddlewareHandler => {
   return async (c, next) => {
     if (!secret) {
+      console.error('REQUEST_SIGNATURE_SECRET is not set')
       return c.json({ message: 'Internal Server Error' }, 500)
     }
 
